@@ -1,0 +1,10 @@
+## IntelliJ
+.idea
+
+## Dependency directory
+node_modules
+
+package-lock.json
+
+## Mac Os
+.DS_Store
