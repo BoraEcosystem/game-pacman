@@ -1,39 +1,64 @@
+'use strict'
+
 var request = require('request');
 
-module.exports = function (data) {
-    function chainApi(data) {
-        var OPTIONS = {
-            headers: { 'Content-Type': 'application/json' },
-            url: null,
-            body: null
-        };
 
-        return {
-            saveScore: function (host, clientAccessToken, toAddr, amount, callback) {
-                OPTIONS.url = 'https://' + host + '/chain/v1/services/deposit/' + toAddr + '/' + amount;
-                OPTIONS.body = '';
-                OPTIONS.headers = { Authorization: 'Bearer ' + clientAccessToken };
-                request.get(OPTIONS, function (err, res, result) {
-                    statusCodeErrorHandler(res.statusCode, callback, result);
-                });
-            }
-        };
-    }
 
-    function statusCodeErrorHandler(statusCode, callback, data) {
-        switch (statusCode) {
-            case 200:
-                callback(null, JSON.parse(data));
-                break;
-            default:
-                callback('error', JSON.parse(data));
-                break;
-        }
-    }
-
-    var INSTANCE;
-    if (INSTANCE === undefined) {
-        INSTANCE = new chainApi(data);
-    }
-    return INSTANCE;
+var ChainAPI = function (host) {
+    this.host = host;
 };
+
+function statusCodeErrorHandler(statusCode, callback, result) {
+    switch (statusCode) {
+        case 200:
+            callback(null, JSON.parse(result));
+            break;
+        default:
+            callback('error', JSON.parse(result));
+            break;
+    }
+}
+
+ChainAPI.prototype.getMemberAddr = function (clientAccessToken, callback) {
+    var OPTIONS = {
+        headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: 'Bearer ' + clientAccessToken,
+        },
+    };
+
+    OPTIONS.url = 'https://' + this.host + '/chain/v1.2/services/members';
+    console.log('options - ' + JSON.stringify(OPTIONS));
+    
+    request.get(OPTIONS, function (err, res, result) {
+        if (err) {
+            console.log(err);
+        }
+        statusCodeErrorHandler(res.statusCode, callback, result);
+    });
+};
+
+ChainAPI.prototype.saveScore = function (clientAccessToken, toAddr, amount, callback) {
+    var OPTIONS = {
+        headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: 'Bearer ' + clientAccessToken,
+        },
+    };
+
+    OPTIONS.url = 'https://' + this.host + '/chain/v1.2/services/deposit';
+    
+    OPTIONS.form =  {
+        tokenAddr: toAddr, 
+        amount: amount, 
+    };
+    console.log(JSON.stringify(OPTIONS));
+    request.post(OPTIONS, function (err, res, result) {
+        if (err) {
+            console.log(err);
+        }
+        statusCodeErrorHandler(res.statusCode, callback, result);
+    });
+};
+
+exports.ChainAPI = ChainAPI;

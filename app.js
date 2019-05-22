@@ -3,7 +3,8 @@ const app = express();
 const http = require("http").Server(app);
 const redis = require('redis');
 const httpOAuth = require('https');
-const chainApi = require('./module/chainApi')('dev');
+//const chainApi = require('./module/chainApi').default('dev');
+const ChainAPI = require('./module/chainApi').ChainAPI;
 var cors = require('cors')
 const cookieParser = require('cookie-parser');
 
@@ -22,6 +23,7 @@ auth_redirect_uri = env_config.prod.auth_redirect_uri;
 serv_port = env_config.prod.serv_port;
 game_uri = env_config.prod.game_uri;
 chain_api_uri = env_config.prod.chain_api_uri;
+auth_api_uri = env_config.prod.auth_api_uri;
 
 // W2B constant
 const appNo = 100004;
@@ -64,16 +66,40 @@ app.get('/token', (req, res) => {
         //members info//
         res.send(tokenInfo);
     });
-})
+});
+
+app.get('/memberAddr', (req, res) => {
+    console.log(req.headers);
+    if (!req.headers.authorization) {
+        return res.status(500).send('access token required');
+    }
+    var userAccessToken = req.headers.authorization.split(' ')[1];
+    console.log('userAccessToken =' + userAccessToken);
+    
+    var chainApi = new ChainAPI(chain_api_uri);
+    chainApi.getMemberAddr(userAccessToken, function (err, result) {
+        if (!err) {
+			console.log('getMemberAddr:' + JSON.stringify(result));
+            res.status(200).send(result);
+        } else {
+			console.log('getMemberAddr failure:' + JSON.stringify(result));
+			console.error(err.message);
+            res.status(500).send(err);
+        }
+    });
+});
 
 app.get("/saveScore", function (req, res) {
     var amount = req.query.amount;
     const toAddr = req.cookies.bpAddress;
-    const apiuri = chain_api_uri;
-    chainApi.saveScore(apiuri, clientAccessToken, toAddr, amount, function (error, data) {
-        if (!error) {
+    var chainApi = new ChainAPI(chain_api_uri);
+    chainApi.saveScore(clientAccessToken, toAddr, amount, function (err, data) {
+        if (!err) {
+			console.log('saveScore:' + JSON.stringify(data));
             res.send(data);
         } else {
+			console.log('saveScore failure:' + JSON.stringify(data));
+			console.error(err.message);
             res.send(data);
         }
     });
@@ -118,7 +144,7 @@ http.listen(app.get('port'), function () {
 function getUserToken(data, cb) {
     const req = httpOAuth.request({
         protocol: 'https:',
-        host: chain_api_uri,
+        host: auth_api_uri,
         port: 443,
         method: 'post',
         path: '/member/oauth/token',
@@ -133,30 +159,33 @@ function getUserToken(data, cb) {
         console.log(body);
     }
     );
-    req.on('error', e => console.error(`problem with request: ${e.message}`));
+    req.on('error', e => console.error(`problem with request getUserToken: ${e.message}`));
     req.write(data);
     req.end();
 }
+
+// Client Credential Grant
 
 function getClientToken(cb) {
     const data = 'grant_type=client_credentials';
     const req = httpOAuth.request({
         protocol: 'https:',
-        host: chain_api_uri,
+        host: auth_api_uri,
         port: 443,
         method: 'post',
         path: '/member/oauth/token',
         auth: `${clientId}:${clientSecret}`,
+        //auth: new Buffer(`${clientId}:${clientSecret}`).toString('base64'),
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+			//'Authorization': 'Basic ' + new Buffer(clientId + ':' + clientSecret).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded'
         }
     }, res => {
         let body = '';
         res.on('data', chunk => body += chunk);
         res.on('end', () => cb(JSON.parse(body)));
-    }
-    );
-    req.on('error', e => console.error(`problem with request: ${e.message}`));
+    });
+    req.on('error', e => console.error(e,`problem with request getClientToken: ${e.message}`));
     req.write(data);
     req.end();
 }

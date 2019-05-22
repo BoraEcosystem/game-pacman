@@ -5,6 +5,7 @@
     "redis_port": 6379,
     "auth_redirect_uri": "http://localhost:4200/cb",
     "game_uri": "/public/html/index.htm",
-    "chain_api_uri": "testnet.bora-lagoon.com"
+    "chain_api_uri": "testnet-chain-api.boraecosystem.com",
+    "auth_api_uri": "accounts.boraecosystem.com"
   }
 }
